@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+# autorobog4fork
+=======
 # opendlv.miniature
 
 ## Building using a Docker builder:
@@ -13,3 +16,4 @@ the platform-specific Badger binaries on the OpenDLV binaries, the OpenDLV core 
 
     docker run -ti --rm --net host --user odv chalmersrevere/opendlv-miniature-on-opendlv-opendlv-core-on-opendavinci-ubuntu-16.04-complete:latest /bin/bash
 
+>>>>>>> upstream/master
