@@ -255,18 +255,39 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       }
 
 
+      //Left wheel
 
+      //Power
       opendlv::proxy::PwmRequest request1(0, abs(leftMotorDuty));
       odcore::data::Container c1(request1);
-      getConference().send(c1);
+      c1.setSenderStamp(1);
             
+      opendlv::proxy::ToggleRequest::ToggleState leftMotorState1;
+      opendlv::proxy::ToggleRequest::ToggleState leftMotorState2;
+       if (leftMotorDuty > 0) {
+        leftMotorState1 = opendlv::proxy::ToggleRequest::On;
+        leftMotorState2 = opendlv::proxy::ToggleRequest::Off;
+      } else {
+        leftMotorState1 = opendlv::proxy::ToggleRequest::Off;
+        leftMotorState2 = opendlv::proxy::ToggleRequest::On;
+      }
 
+      //Set the direction
+      opendlv::proxy::ToggleRequest requestGpio3(60, leftMotorState1);
+      odcore::data::Container c5(requestGpio3);
+      opendlv::proxy::ToggleRequest requestGpio4(51, leftMotorState2);
+      odcore::data::Container c6(requestGpio4);
+
+
+      //Right wheel
+
+      //Power
       opendlv::proxy::PwmRequest request2(0, abs(rightMotorDuty));
       odcore::data::Container c2(request2);
-      getConference().send(c2);
+      c2.setSenderStamp(2);
 
 
-//GPIO
+      // Set direction
       opendlv::proxy::ToggleRequest::ToggleState rightMotorState1;
       opendlv::proxy::ToggleRequest::ToggleState rightMotorState2;
 
@@ -280,26 +301,15 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
 
       opendlv::proxy::ToggleRequest requestGpio1(30, rightMotorState1);
       odcore::data::Container c3(requestGpio1);
-      getConference().send(c3);
       opendlv::proxy::ToggleRequest requestGpio2(31, rightMotorState2);
       odcore::data::Container c4(requestGpio2);
+
+      //Send the data
+      getConference().send(c1);
+      getConference().send(c2);
+      getConference().send(c3);
       getConference().send(c4);
-
-      opendlv::proxy::ToggleRequest::ToggleState leftMotorState1;
-      opendlv::proxy::ToggleRequest::ToggleState leftMotorState2;
-       if (leftMotorDuty > 0) {
-        leftMotorState1 = opendlv::proxy::ToggleRequest::On;
-        leftMotorState2 = opendlv::proxy::ToggleRequest::Off;
-      } else {
-        leftMotorState1 = opendlv::proxy::ToggleRequest::Off;
-        leftMotorState2 = opendlv::proxy::ToggleRequest::On;
-      }
-
-      opendlv::proxy::ToggleRequest requestGpio3(60, leftMotorState1);
-      odcore::data::Container c5(requestGpio3);
       getConference().send(c5);
-      opendlv::proxy::ToggleRequest requestGpio4(51, leftMotorState2);
-      odcore::data::Container c6(requestGpio4);
       getConference().send(c6);
 
 
