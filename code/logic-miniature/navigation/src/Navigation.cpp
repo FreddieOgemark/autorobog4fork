@@ -211,7 +211,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
     }
 
     if (m_debug) {
-      std::cout << "[" << state << ":" << outState << "]: " << comment << std::endl;
+      std::cout << "[NAVSTATE:" << state << ":" << outState << "]: " << comment << std::endl;
     }
 
 
