@@ -29,6 +29,18 @@ namespace opendlv {
 namespace logic {
 namespace miniature {
 
+
+enum class navigationState
+{
+  FORWARD,
+  TURN_RIGHT,
+  TURN_LEFT,
+  ROTATE_RIGHT,
+  ROTATE_LEFT,
+
+};
+
+
 class Navigation : 
   public odcore::base::module::TimeTriggeredConferenceClientModule {
  public:
@@ -39,15 +51,47 @@ class Navigation :
   virtual void nextContainer(odcore::data::Container &);
 
  private:
+
+  static const double S_W_SIDE_DETECTION;
+  static const double S_W_FRONT_DETECTION;
+  static const double S_W_CLOSE_FRONT_DETECTION;
+  static const double S_OUT_OF_RANGE;
+
+
+  static const int32_t E_FORWARD;
+  static const int32_t E_ROTATE_RIGHT_L;
+  static const int32_t E_ROTATE_RIGHT_R;
+  static const int32_t E_ROTATE_LEFT_L;
+  static const int32_t E_ROTATE_LEFT_R;
+  static const int32_t E_STILL;
+  static const int32_t E_DYN_TURN_SPEED;
+  //static const uint32_t E_SEARCH;
+
+  static const uint32_t UPDATE_FREQ;
+
+
   void setUp();
   void tearDown();
   virtual odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode body();
+  void decodeResolveSensors();
+
+
 
   odcore::base::Mutex m_mutex;
   std::map<uint16_t, float> m_analogReadings;
   std::map<uint16_t, bool> m_gpioReadings;
   std::vector<uint16_t> m_gpioOutputPins;
   std::vector<uint16_t> m_pwmOutputPins;
+  navigationState m_currentState;
+ // double m_s_w_Front;
+  bool m_s_w_FrontLeft;
+  bool m_s_w_FrontRight;
+  bool m_dynSpeedLeft;
+  bool m_dynSpeedRight;
+  uint16_t m_updateCounter;
+  bool m_debug;
+
+
 };
 
 }
