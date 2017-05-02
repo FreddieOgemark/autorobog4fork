@@ -47,11 +47,11 @@ namespace miniature {
 
 
 
-const int32_t Navigation::E_FORWARD = 50000;
-const int32_t Navigation::E_ROTATE_RIGHT_L = 50000;
-const int32_t Navigation::E_ROTATE_RIGHT_R = -50000;
-const int32_t Navigation::E_ROTATE_LEFT_L  = -50000;
-const int32_t Navigation::E_ROTATE_LEFT_R  = 50000;
+const int32_t Navigation::E_FORWARD = 35000;
+const int32_t Navigation::E_ROTATE_RIGHT_L = 35000;
+const int32_t Navigation::E_ROTATE_RIGHT_R = -35000;
+const int32_t Navigation::E_ROTATE_LEFT_L  = -35000;
+const int32_t Navigation::E_ROTATE_LEFT_R  = 35000;
 const int32_t Navigation::E_STILL = 0;
 const int32_t Navigation::E_DYN_TURN_SPEED = 15000;
 //const uint32_t Navigation::E_SEARCH = 55000;
@@ -144,6 +144,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
     std::string comment = "";
 
 
+
     /*
     Logic Handling
     */
@@ -210,9 +211,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
         break;
     }
 
-    if (m_debug) {
-      std::cout << "[NAVSTATE:" << state << ":" << outState << "]: " << comment << std::endl;
-    }
+
 
 
     /*
@@ -312,12 +311,17 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       getConference().send(c5);
       getConference().send(c6);
 
+      comment = " L:" + std::to_string(leftMotorDuty) + "  R:" +  std::to_string(rightMotorDuty);
+
 
 
     } else {
       m_updateCounter += 1;
     }
 
+    if (m_debug) {
+      std::cout << "[NAVSTATE:" << state << ":" << outState << "]: " << comment << std::endl;
+    }
 
   }
   return odcore::data::dmcp::ModuleExitCodeMessage::OKAY;
