@@ -24,10 +24,10 @@ services:
         network_mode: "host"
         command: "/opt/opendlv.miniature/bin/opendlv-proxy-miniature-pwm --cid=${CID} --id=1"
 
-proxy-miniature-pwm-1:
-    build: .
-    privileged: true    #writing to /sys/
-    volumes:
-        - /sys/:/sys/
-    network_mode: "host"
-    command: "/opt/opendlv.miniature/bin/opendlv-proxy-miniature-pwm --cid=${CID} --id=2"
+    proxy-miniature-pwm-1:
+        build: .
+        privileged: true    #writing to /sys/
+        volumes:
+            - /sys/:/sys/
+        network_mode: "host"
+        command: "/opt/opendlv.miniature/bin/opendlv-proxy-miniature-pwm --cid=${CID} --id=2"
