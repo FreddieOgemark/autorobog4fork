@@ -33,11 +33,13 @@ namespace miniature {
 enum class navigationState
 {
   FORWARD,
+  REVERSE,
   TURN_RIGHT,
   TURN_LEFT,
   ROTATE_RIGHT,
+  ROTATE_RIGHT_DELAY,
   ROTATE_LEFT,
-
+  ROTATE_LEFT_DELAY
 };
 
 
@@ -57,8 +59,13 @@ class Navigation :
   static const double S_W_CLOSE_FRONT_DETECTION;
   static const double S_OUT_OF_RANGE;
 
+  static const double T_REVERSE;
+  static const double T_TURN;
+
+
 
   static const int32_t E_FORWARD;
+  static const int32_t E_REVERSE;
   static const int32_t E_ROTATE_RIGHT_L;
   static const int32_t E_ROTATE_RIGHT_R;
   static const int32_t E_ROTATE_LEFT_L;
@@ -83,7 +90,10 @@ class Navigation :
   std::vector<uint16_t> m_gpioOutputPins;
   std::vector<uint16_t> m_pwmOutputPins;
   navigationState m_currentState;
+  navigationState m_lastState;
   odcore::data::TimeStamp m_t_Current;
+  odcore::data::TimeStamp m_t_Last;
+
  // double m_s_w_Front;
   bool m_s_w_FrontLeft;
   odcore::data::TimeStamp m_s_w_FrontLeft_t;
