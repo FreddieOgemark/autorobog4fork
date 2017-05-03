@@ -267,7 +267,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       //Power
       opendlv::proxy::PwmRequest request1(0, abs(leftMotorDuty));
       odcore::data::Container c1(request1);
-      c1.setSenderStamp(1);
+      c1.setSenderStamp(0);
             
       opendlv::proxy::ToggleRequest::ToggleState leftMotorState1;
       opendlv::proxy::ToggleRequest::ToggleState leftMotorState2;
