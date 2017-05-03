@@ -83,11 +83,14 @@ class Navigation :
   std::vector<uint16_t> m_gpioOutputPins;
   std::vector<uint16_t> m_pwmOutputPins;
   navigationState m_currentState;
+  odcore::data::TimeStamp m_t_Current;
  // double m_s_w_Front;
   bool m_s_w_FrontLeft;
+  odcore::data::TimeStamp m_s_w_FrontLeft_t;
   bool m_s_w_FrontRight;
-  bool m_dynSpeedLeft;
-  bool m_dynSpeedRight;
+  odcore::data::TimeStamp m_s_w_FrontRight_t;
+//  bool m_dynSpeedLeft;
+//  bool m_dynSpeedRight;
   uint16_t m_updateCounter;
   bool m_debug;
 

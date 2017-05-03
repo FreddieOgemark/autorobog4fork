@@ -24,6 +24,7 @@
 #include <opendavinci/odcore/base/Lock.h>
 #include <opendavinci/odcore/data/Container.h>
 #include <opendavinci/odcore/strings/StringToolbox.h>
+#include <opendavinci/odcore/data/TimeStamp.h>
 
 #include <odvdminiature/GeneratedHeaders_ODVDMiniature.h>
 
@@ -71,15 +72,19 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_gpioOutputPins()
     , m_pwmOutputPins()
     , m_currentState()
+    , m_t_Current()
    // , m_s_w_Front(0)
     , m_s_w_FrontLeft(0)
+    , m_s_w_FrontLeft_t()
     , m_s_w_FrontRight(0)
+    , m_s_w_FrontRight_t()
   //  , m_dynSpeedLeft(0)
  //   , m_dynSpeedRight(0)
     , m_updateCounter(0)
     , m_debug(true)
 {
   m_currentState = navigationState::FORWARD;
+  m_t_Current = odcore::data::TimeStamp();
 }
 
 /*
@@ -137,6 +142,9 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
     // reading and writing to the class global maps, see also 'nextContainer'.
     odcore::base::Lock l(m_mutex);
 
+    //Update the current time
+    m_t_Current = odcore::data::TimeStamp();
+    // 
     decodeResolveSensors();
 
     std::string state = "";
@@ -330,7 +338,17 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
 void Navigation::decodeResolveSensors()
 {
   m_s_w_FrontRight = m_gpioReadings[49];
+  if (m_s_w_FrontRight) {
+    m_s_w_FrontLeft_t = m_t_Current;
+  }
   m_s_w_FrontLeft  = m_gpioReadings[48];
+  if (m_s_w_FrontLeft) {
+    m_s_w_FrontLeft_t = m_t_Current;
+  }
+
+
+
+
   std::cout  << "m_s_w_FrontRight: " << m_s_w_FrontRight << std::endl;
   std::cout  << "m_s_w_FrontLeft: " << m_s_w_FrontLeft << std::endl;
 
