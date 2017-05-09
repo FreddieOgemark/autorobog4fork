@@ -47,12 +47,13 @@ namespace miniature {
 //const double Navigation::S_OUT_OF_RANGE = 1.79;
 
 
-const double Navigation::T_REVERSE = 1.0;
-const double Navigation::T_TURN = 1.0;
+const double Navigation::T_REVERSE = 0.7;
+const double Navigation::T_ROTATE_REVERSE = 0.2;
+const double Navigation::T_TURN = 1;
 
 
-const int32_t Navigation::E_FORWARD = 35000;
-const int32_t Navigation::E_REVERSE = 30000;
+const int32_t Navigation::E_FORWARD = 36000;
+const int32_t Navigation::E_REVERSE = -35000;
 const int32_t Navigation::E_ROTATE_RIGHT_L = 35000;
 const int32_t Navigation::E_ROTATE_RIGHT_R = -35000;
 const int32_t Navigation::E_ROTATE_LEFT_L  = -35000;
@@ -172,16 +173,13 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       case navigationState::FORWARD:
         state = "FORWARD";
         if (m_s_w_FrontLeft and m_s_w_FrontRight) {
-          outState = "Reverse";
           m_currentState = navigationState::REVERSE;
 
         } else if (m_s_w_FrontRight) {
-          outState = "TURN_LEFT";
-          m_currentState = navigationState::TURN_LEFT;
+          m_currentState = navigationState::ROTATE_LEFT_REVERSE;
 
         } else if (m_s_w_FrontLeft) {
-          outState = "TURN_RIGHT";
-          m_currentState = navigationState::TURN_RIGHT;
+          m_currentState = navigationState::ROTATE_RIGHT_REVERSE;
         }
         break; 
 
@@ -220,6 +218,17 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
         }
         break;
 
+      case navigationState::ROTATE_RIGHT:
+        state = "ROTATE_RIGHT";
+        if (!m_s_w_FrontRight && !m_s_w_FrontLeft) {
+          outState = "FORWARD";
+          m_currentState = navigationState::FORWARD; 
+        } else if (m_s_w_FrontRight && m_s_w_FrontLeft) {
+          outState = "REVERSE";
+          m_currentState = navigationState::REVERSE; 
+        }
+        break;
+
       case navigationState::ROTATE_RIGHT_DELAY:
         state = "ROTATE_RIGHT_DELAY";
         t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
@@ -229,20 +238,11 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
         }
         break;
 
-      case navigationState::ROTATE_LEFT_DELAY:
-        state = "ROTATE_LEFT_DELAY";
+      case navigationState::ROTATE_RIGHT_REVERSE:
+        state = "ROTATE_RIGHT_REVERSE";
         t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
-        if (t1 > T_TURN) {
-          outState = "FORWARD";
-          m_currentState = navigationState::FORWARD; 
-        }
-        break;
-
-      case navigationState::ROTATE_RIGHT:
-        state = "ROTATE_RIGHT";
-        if (!m_s_w_FrontRight && !m_s_w_FrontLeft) {
-          outState = "FORWARD";
-          m_currentState = navigationState::FORWARD; 
+        if (t1 > T_ROTATE_REVERSE) {
+            m_currentState = navigationState::ROTATE_RIGHT_DELAY;
         }
         break;
 
@@ -251,6 +251,26 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
         if(!m_s_w_FrontRight && !m_s_w_FrontLeft) {
             outState = "FORWARD";
             m_currentState = navigationState::FORWARD;
+        } else if (m_s_w_FrontRight && m_s_w_FrontLeft) {
+          outState = "REVERSE";
+          m_currentState = navigationState::REVERSE; 
+        }
+        break;
+
+     case navigationState::ROTATE_LEFT_DELAY:
+        state = "ROTATE_LEFT_DELAY";
+        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
+        if (t1 > T_TURN) {
+          outState = "FORWARD";
+          m_currentState = navigationState::FORWARD; 
+        }
+        break;
+
+      case navigationState::ROTATE_LEFT_REVERSE:
+        state = "ROTATE_LEFT_REVERSE";
+        t2 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
+        if (t2 > T_ROTATE_REVERSE) {
+            m_currentState = navigationState::ROTATE_LEFT_DELAY;
         }
         break;
 
@@ -287,6 +307,8 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
           break;
 
         case navigationState::REVERSE:
+        case navigationState::ROTATE_LEFT_REVERSE:
+        case navigationState::ROTATE_RIGHT_REVERSE:
           leftMotorDuty = E_REVERSE;
           rightMotorDuty = E_REVERSE;
           break;
@@ -312,6 +334,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
           leftMotorDuty = E_ROTATE_LEFT_L;
           rightMotorDuty = E_ROTATE_LEFT_R;
           break;
+
 
       }
 

@@ -91,6 +91,11 @@ proxy-miniature-pwm:2.pins = 0
 proxy-miniature-pwm:2.periodsNs = 50000
 proxy-miniature-pwm:2.dutyCyclesNs = 25000  
 
+proxy-miniature-pwm:3.debug = 1
+proxy-miniature-pwm:3.systemPath = /sys/class/pwm/pwmchip4
+proxy-miniature-pwm:3.pins = 0
+proxy-miniature-pwm:3.periodsNs = 20000
+proxy-miniature-pwm:3.dutyCyclesNs = 1500
 
 ###############################################################################
 ###############################################################################

@@ -38,8 +38,10 @@ enum class navigationState
   TURN_LEFT,
   ROTATE_RIGHT,
   ROTATE_RIGHT_DELAY,
+  ROTATE_RIGHT_REVERSE,
   ROTATE_LEFT,
-  ROTATE_LEFT_DELAY
+  ROTATE_LEFT_DELAY,
+  ROTATE_LEFT_REVERSE
 };
 
 
@@ -60,6 +62,7 @@ class Navigation :
   static const double S_OUT_OF_RANGE;
 
   static const double T_REVERSE;
+  static const double T_ROTATE_REVERSE;
   static const double T_TURN;
 
 
