@@ -21,6 +21,7 @@
 
 #include <map>
 #include <memory>
+#include <array>
 
 #include <opendavinci/odcore/base/Mutex.h>
 #include <opendavinci/odcore/base/module/TimeTriggeredConferenceClientModule.h>
@@ -32,17 +33,18 @@ namespace miniature {
 
 enum class navigationState
 {
-  FORWARD,
   REVERSE,
-  TURN_RIGHT,
-  TURN_LEFT,
   ROTATE_RIGHT,
-  ROTATE_RIGHT_DELAY,
-  ROTATE_RIGHT_REVERSE,
   ROTATE_LEFT,
-  ROTATE_LEFT_DELAY,
-  ROTATE_LEFT_REVERSE
+  FOLLOW,
+  PLAN,
 };
+
+enum class stateModifier
+{
+  NONE,
+  DELAY,
+}
 
 
 class Navigation : 
@@ -84,7 +86,11 @@ class Navigation :
   void tearDown();
   virtual odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode body();
   void decodeResolveSensors();
-
+  void logicHandling();
+  void pathPlanning();
+  std::array<int32_t, 2> engineHandling();
+  std::array<int32_t, 2> followPreview();
+  std::array<int32_t, 2> forward();
 
 
   odcore::base::Mutex m_mutex;
@@ -92,18 +98,19 @@ class Navigation :
   std::map<uint16_t, bool> m_gpioReadings;
   std::vector<uint16_t> m_gpioOutputPins;
   std::vector<uint16_t> m_pwmOutputPins;
+
   navigationState m_currentState;
   navigationState m_lastState;
+  stateModifier m_currentModifer;
+
   odcore::data::TimeStamp m_t_Current;
   odcore::data::TimeStamp m_t_Last;
+  std::array<int32_t,2> m_MotorDuties;
 
- // double m_s_w_Front;
   bool m_s_w_FrontLeft;
   odcore::data::TimeStamp m_s_w_FrontLeft_t;
   bool m_s_w_FrontRight;
   odcore::data::TimeStamp m_s_w_FrontRight_t;
-//  bool m_dynSpeedLeft;
-//  bool m_dynSpeedRight;
   uint16_t m_updateCounter;
   bool m_debug;
 

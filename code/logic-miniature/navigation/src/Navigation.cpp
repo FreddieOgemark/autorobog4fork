@@ -76,22 +76,25 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_gpioReadings()
     , m_gpioOutputPins()
     , m_pwmOutputPins()
+    
     , m_currentState()
     , m_lastState()
+    , m_currentModifer()
+
     , m_t_Current()
     , m_t_Last()
-   // , m_s_w_Front(0)
+    , m_MotorDuties()
+
     , m_s_w_FrontLeft(0)
     , m_s_w_FrontLeft_t()
     , m_s_w_FrontRight(0)
     , m_s_w_FrontRight_t()
-  //  , m_dynSpeedLeft(0)
- //   , m_dynSpeedRight(0)
     , m_updateCounter(0)
     , m_debug(true)
 {
-  m_lastState =  navigationState::FORWARD;
-  m_currentState = navigationState::FORWARD;
+  m_lastState =  navigationState::PLAN;
+  m_currentState = navigationState::PLAN;
+  m_currentModifer = stateModifier::NONE;
   m_t_Current = odcore::data::TimeStamp();
 }
 
@@ -154,142 +157,22 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
     m_t_Current = odcore::data::TimeStamp();
     // 
     decodeResolveSensors();
-
-    std::string state = "";
-    std::string outState = "";
-    std::string comment = "";
-
-
-
-    /*
-    Logic Handling
-    */
-  double t1 = 0;
-  double t2 = 0;
-
-
-    navigationState old_state = m_currentState;
-    switch(m_currentState) {
-      case navigationState::FORWARD:
-        state = "FORWARD";
-        if (m_s_w_FrontLeft and m_s_w_FrontRight) {
-          m_currentState = navigationState::REVERSE;
-
-        } else if (m_s_w_FrontRight) {
-          m_currentState = navigationState::ROTATE_LEFT_REVERSE;
-
-        } else if (m_s_w_FrontLeft) {
-          m_currentState = navigationState::ROTATE_RIGHT_REVERSE;
-        }
-        break; 
-
-      case navigationState::REVERSE:
-        state = "REVERSE";
-        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_s_w_FrontLeft_t.toMicroseconds()) / 1000000.0;
-        t2 = static_cast<double>(m_t_Current.toMicroseconds() - m_s_w_FrontRight_t.toMicroseconds()) / 1000000.0;
-        if (t1 > T_REVERSE and t2 > T_REVERSE) {
-          if (t1 > t2) {
-            m_currentState = navigationState::ROTATE_RIGHT_DELAY;
-          } else {
-            m_currentState = navigationState::ROTATE_LEFT_DELAY;
-          }
-        }
-        break;
-
-      case navigationState::TURN_LEFT:
-        state = "TURN_LEFT";
-        if (!m_s_w_FrontRight && !m_s_w_FrontLeft) {
-            outState = "FORWARD";
-            m_currentState = navigationState::FORWARD;
-        } else if (m_s_w_FrontRight) {
-            outState = "ROTATE_LEFT";
-            m_currentState = navigationState::ROTATE_LEFT;
-        }
-        break;
-
-      case navigationState::TURN_RIGHT:
-        state = "TURN_RIGHT";
-        if (!m_s_w_FrontRight && !m_s_w_FrontLeft ) {
-            outState = "FORWARD";
-            m_currentState = navigationState::FORWARD;
-        } else if (m_s_w_FrontLeft) {
-            outState = "ROTATE_RIGHT";
-            m_currentState = navigationState::ROTATE_RIGHT;
-        }
-        break;
-
-      case navigationState::ROTATE_RIGHT:
-        state = "ROTATE_RIGHT";
-        if (!m_s_w_FrontRight && !m_s_w_FrontLeft) {
-          outState = "FORWARD";
-          m_currentState = navigationState::FORWARD; 
-        } else if (m_s_w_FrontRight && m_s_w_FrontLeft) {
-          outState = "REVERSE";
-          m_currentState = navigationState::REVERSE; 
-        }
-        break;
-
-      case navigationState::ROTATE_RIGHT_DELAY:
-        state = "ROTATE_RIGHT_DELAY";
-        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
-        if (t1 > T_TURN) {
-          outState = "FORWARD";
-          m_currentState = navigationState::FORWARD; 
-        }
-        break;
-
-      case navigationState::ROTATE_RIGHT_REVERSE:
-        state = "ROTATE_RIGHT_REVERSE";
-        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
-        if (t1 > T_ROTATE_REVERSE) {
-            m_currentState = navigationState::ROTATE_RIGHT_DELAY;
-        }
-        break;
-
-      case navigationState::ROTATE_LEFT:
-        state = "ROTATE_LEFT";
-        if(!m_s_w_FrontRight && !m_s_w_FrontLeft) {
-            outState = "FORWARD";
-            m_currentState = navigationState::FORWARD;
-        } else if (m_s_w_FrontRight && m_s_w_FrontLeft) {
-          outState = "REVERSE";
-          m_currentState = navigationState::REVERSE; 
-        }
-        break;
-
-     case navigationState::ROTATE_LEFT_DELAY:
-        state = "ROTATE_LEFT_DELAY";
-        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
-        if (t1 > T_TURN) {
-          outState = "FORWARD";
-          m_currentState = navigationState::FORWARD; 
-        }
-        break;
-
-      case navigationState::ROTATE_LEFT_REVERSE:
-        state = "ROTATE_LEFT_REVERSE";
-        t2 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
-        if (t2 > T_ROTATE_REVERSE) {
-            m_currentState = navigationState::ROTATE_LEFT_DELAY;
-        }
-        break;
-
-
-      default:
-        state = "UNKOWN";
-        outState = "FORWARD";
-        m_currentState = navigationState::FORWARD;
-        break;
-    }
-
-
-
+    logicHandling();
+    std::array<int32_t> motorDuties = engineHandling();
 
     /*
     Engine Speed update
     */
 
-    if (old_state != m_currentState or m_updateCounter > UPDATE_FREQ) {
+    // MotorDuties[0] is left Engine
+    // MotorDuties[1] is right Engine
+    if (motorDuties[0] != m_MotorDuties[0] or 
+        motorDuties[1] != m_MotorDuties[1] or 
+        old_state != m_currentState or
+        m_updateCounter > UPDATE_FREQ) {
+      
+      m_MotorDuties = motorDuties;
+
       if (old_state != m_currentState) {
         m_lastState = m_currentState;
         m_t_Last = m_t_Current;
@@ -297,58 +180,17 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       m_updateCounter = 0;
 
 
-      int32_t leftMotorDuty = E_STILL;
-      int32_t rightMotorDuty = E_STILL;
-
-      switch(m_currentState) {
-        case navigationState::FORWARD:
-          leftMotorDuty = E_FORWARD;
-          rightMotorDuty = E_FORWARD;
-          break;
-
-        case navigationState::REVERSE:
-        case navigationState::ROTATE_LEFT_REVERSE:
-        case navigationState::ROTATE_RIGHT_REVERSE:
-          leftMotorDuty = E_REVERSE;
-          rightMotorDuty = E_REVERSE;
-          break;
-
-        case navigationState::TURN_LEFT:
-          leftMotorDuty = E_FORWARD - E_DYN_TURN_SPEED;
-          rightMotorDuty = E_FORWARD;
-          break;
-
-        case navigationState::TURN_RIGHT:
-          leftMotorDuty = E_FORWARD;
-          rightMotorDuty = E_FORWARD - E_DYN_TURN_SPEED;
-          break;
-
-        case navigationState::ROTATE_RIGHT_DELAY:
-        case navigationState::ROTATE_RIGHT:
-          leftMotorDuty = E_ROTATE_RIGHT_L;
-          rightMotorDuty = E_ROTATE_RIGHT_R;
-          break;
-
-        case navigationState::ROTATE_LEFT_DELAY:
-        case navigationState::ROTATE_LEFT:
-          leftMotorDuty = E_ROTATE_LEFT_L;
-          rightMotorDuty = E_ROTATE_LEFT_R;
-          break;
-
-
-      }
-
-
+    
       //Left wheel
 
       //Power
-      opendlv::proxy::PwmRequest request1(0, abs(leftMotorDuty));
+      opendlv::proxy::PwmRequest request1(0, abs(motorDuties[0]));
       odcore::data::Container c1(request1);
       c1.setSenderStamp(0);
             
       opendlv::proxy::ToggleRequest::ToggleState leftMotorState1;
       opendlv::proxy::ToggleRequest::ToggleState leftMotorState2;
-       if (leftMotorDuty > 0) {
+       if (motorDuties[0] > 0) {
         leftMotorState1 = opendlv::proxy::ToggleRequest::On;
         leftMotorState2 = opendlv::proxy::ToggleRequest::Off;
       } else {
@@ -366,7 +208,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       //Right wheel
 
       //Power
-      opendlv::proxy::PwmRequest request2(0, abs(rightMotorDuty));
+      opendlv::proxy::PwmRequest request2(0, abs(motorDuties[1]));
       odcore::data::Container c2(request2);
       c2.setSenderStamp(2);
 
@@ -375,7 +217,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       opendlv::proxy::ToggleRequest::ToggleState rightMotorState1;
       opendlv::proxy::ToggleRequest::ToggleState rightMotorState2;
 
-      if (rightMotorDuty > 0) {
+      if (motorDuties[1] > 0) {
         rightMotorState1 = opendlv::proxy::ToggleRequest::On;
         rightMotorState2 = opendlv::proxy::ToggleRequest::Off;
       } else {
@@ -396,16 +238,8 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       getConference().send(c5);
       getConference().send(c6);
 
-      comment += " L:" + std::to_string(leftMotorDuty) + "  R:" +  std::to_string(rightMotorDuty);
-
-
-
     } else {
       m_updateCounter += 1;
-    }
-
-    if (m_debug) {
-      std::cout << "[NAVSTATE:" << state << ":" << outState << "]: " << comment << std::endl;
     }
 
   }
@@ -423,22 +257,171 @@ void Navigation::decodeResolveSensors()
     m_s_w_FrontLeft_t = m_t_Current;
   }
 
-
-
-
-  std::cout  << "m_s_w_FrontRight: " << m_s_w_FrontRight << std::endl;
-  std::cout  << "m_s_w_FrontLeft: " << m_s_w_FrontLeft << std::endl;
-
- // m_dynSpeedLeft = 1.8 - m_s_w_FrontLeft;
- // m_dynSpeedRight = 1.9 - m_s_w_FrontRight;
-
 }
 
 
 
+  void Navigation::logicHandling() 
+  {
+    std::string state = "";
+    std::string outState = "";
+    std::string comment = "";
+
+    double t1 = 0;
+    double t2 = 0;
 
 
+    navigationState old_state = m_currentState;
+    switch(m_currentState) { 
+      case navigationState::REVERSE:
+        state = "REVERSE";
 
+        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_s_w_FrontLeft_t.toMicroseconds()) / 1000000.0;
+        t2 = static_cast<double>(m_t_Current.toMicroseconds() - m_s_w_FrontRight_t.toMicroseconds()) / 1000000.0;
+
+        if (m_currentModifer == stateModifier::NONE || 
+           (m_currentModifer == stateModifier::DELAY && t1 > T_REVERSE && t2 > T_REVERSE)) 
+        {
+          if (t1 > t2) {
+            outState = "ROTATE_RIGHT";
+            m_currentState = navigationState::ROTATE_RIGHT;
+          } else {
+            outState = "ROTATE_LEFT";
+            m_currentState = navigationState::ROTATE_LEFT;
+          }
+        }
+        //TODO: logic for US
+        break;
+
+      case navigationState::ROTATE_RIGHT:
+        state = "ROTATE_RIGHT";
+
+        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
+
+        if (m_currentModifer == stateModifier::NONE || 
+           (m_currentModifer == stateModifier::DELAY && t1 > T_TURN))
+        {
+          if (!m_s_w_FrontRight && !m_s_w_FrontLeft) {
+            outState = "FOLLOW";
+            m_currentState = navigationState::FOLLOW; 
+          } else if (m_s_w_FrontRight && m_s_w_FrontLeft) {
+            outState = "REVERSE";
+            m_currentState = navigationState::REVERSE; 
+          }
+        }
+        //TODO: logic for US
+        break;
+
+      case navigationState::ROTATE_LEFT:
+        state = "ROTATE_LEFT";
+        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
+
+        if (m_currentModifer == stateModifier::NONE || 
+           (m_currentModifer == stateModifier::DELAY && t1 > T_TURN))
+        {
+          if(!m_s_w_FrontRight && !m_s_w_FrontLeft) {
+              outState = "FOLLOW";
+              m_currentState = navigationState::FOLLOW;
+          } else if (m_s_w_FrontRight && m_s_w_FrontLeft) {
+            outState = "REVERSE";
+            m_currentState = navigationState::REVERSE; 
+          }
+        }
+        //TODO: logic for US
+        break;
+
+      case navigationState::PLAN:
+        state = "PLAN";
+        if (m_updateCounter == 1) {
+          pathPlanning();
+        } else if (m_updateCounter > 1) {
+          outState = "FOLLOW";
+          m_currentState = navigationState::FOLLOW;
+        }
+        break;
+
+      case navigationState::FOLLOW:
+        state = "FOLLOW";
+
+        if (m_s_w_FrontLeft && m_s_w_FrontRight) {
+          outState = "REVERSE";
+          m_currentState = navigationState::REVERSE;
+          m_currentModifer = stateModifier::DELAY;
+
+        } else if (m_s_w_FrontRight) {
+          outState = "ROTATE_LEFT";
+          m_currentState = navigationState::ROTATE_LEFT;
+          m_currentModifer = stateModifier::DELAY;
+
+        } else if (m_s_w_FrontLeft) {
+          outState = "ROTATE_RIGHT";
+          m_currentState = navigationState::ROTATE_RIGHT;
+          m_currentModifer = stateModifier::DELAY;
+        }
+        //TODO: logic for ultrasound
+        //TODO: logic for pathplanning if too far from path
+        break;
+
+      default:
+        state = "UNKOWN";
+        outState = "PLAN";
+        m_currentState = navigationState::PLAN;
+        break;
+    }
+
+    if (m_debug){
+      if(m_currentModifer == stateModifier::DELAY) {
+        std::cout << "[NAVSTATE:" << state << "(DELAY):" << outState << "]" << std::endl;
+      } else {
+        std::cout << "[NAVSTATE:" << state << ":" << outState << "]" << std::endl;
+      }
+    }
+
+  }
+  void Navigation::pathPlanning() {
+    return;
+  }
+
+  std::array<int, 2> Navigation::engineHandling(){
+    std::array<int, 2> out = {0,0};
+
+    switch(m_currentState) {
+      case navigationState::REVERSE:
+        out[0] = E_REVERSE;
+        out[1] = E_REVERSE;
+        break;
+
+      case navigationState::ROTATE_RIGHT:
+        out[0]  = E_ROTATE_RIGHT_L;
+        out[1] = E_ROTATE_RIGHT_R;
+        break;
+
+      case navigationState::ROTATE_LEFT:
+        out[0]  = E_ROTATE_LEFT_L;
+        out[1] = E_ROTATE_LEFT_R;
+        break;
+
+      case navigationState::FOLLOW:
+        return followPreview();
+
+      case navigationState::PLAN:
+        out[0] = E_STILL;
+        out[1] = E_STILL;
+        break;
+    }
+
+    return out;
+
+
+  }
+
+  std::array<int32_t> Navigation::followPreview() {
+    return forward();
+  }
+  std::array<int32_t> Navigation::forward() {
+    return ;
+  }
+  
 
 /* 
   This method receives messages from all other modules (in the same conference 
