@@ -76,7 +76,7 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_gpioReadings()
     , m_gpioOutputPins()
     , m_pwmOutputPins()
-    
+
     , m_currentState()
     , m_lastState()
     , m_currentModifer()
@@ -157,8 +157,10 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
     m_t_Current = odcore::data::TimeStamp();
     // 
     decodeResolveSensors();
+    
+    navigationState old_state = m_currentState;
     logicHandling();
-    std::array<int32_t> motorDuties = engineHandling();
+    std::array<int32_t, 2> motorDuties = engineHandling();
 
     /*
     Engine Speed update
@@ -269,18 +271,20 @@ void Navigation::decodeResolveSensors()
 
     double t1 = 0;
     double t2 = 0;
+    std::vector<double> v;
 
 
-    navigationState old_state = m_currentState;
     switch(m_currentState) { 
       case navigationState::REVERSE:
         state = "REVERSE";
 
+
         t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_s_w_FrontLeft_t.toMicroseconds()) / 1000000.0;
         t2 = static_cast<double>(m_t_Current.toMicroseconds() - m_s_w_FrontRight_t.toMicroseconds()) / 1000000.0;
+        v.push_back(t1);
+        v.push_back(t2);
 
-        if (m_currentModifer == stateModifier::NONE || 
-           (m_currentModifer == stateModifier::DELAY && t1 > T_REVERSE && t2 > T_REVERSE)) 
+        if (modifierHandling(v, T_TURN)) 
         {
           if (t1 > t2) {
             outState = "ROTATE_RIGHT";
@@ -296,10 +300,7 @@ void Navigation::decodeResolveSensors()
       case navigationState::ROTATE_RIGHT:
         state = "ROTATE_RIGHT";
 
-        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
-
-        if (m_currentModifer == stateModifier::NONE || 
-           (m_currentModifer == stateModifier::DELAY && t1 > T_TURN))
+        if (modifierHandling(m_t_Last, T_TURN))
         {
           if (!m_s_w_FrontRight && !m_s_w_FrontLeft) {
             outState = "FOLLOW";
@@ -314,10 +315,7 @@ void Navigation::decodeResolveSensors()
 
       case navigationState::ROTATE_LEFT:
         state = "ROTATE_LEFT";
-        t1 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_Last.toMicroseconds()) / 1000000.0;
-
-        if (m_currentModifer == stateModifier::NONE || 
-           (m_currentModifer == stateModifier::DELAY && t1 > T_TURN))
+        if (modifierHandling(m_t_Last, T_TURN))
         {
           if(!m_s_w_FrontRight && !m_s_w_FrontLeft) {
               outState = "FOLLOW";
@@ -382,8 +380,17 @@ void Navigation::decodeResolveSensors()
     return;
   }
 
-  std::array<int, 2> Navigation::engineHandling(){
-    std::array<int, 2> out = {0,0};
+  /*
+  * engineHandling returns the engine values to be set
+  *
+  * It returns the duty cycle values for the engines
+  * depending on the state and other factors
+  * 
+  */
+  std::array<int32_t, 2> Navigation::engineHandling(){
+    std::array<int32_t, 2> out;
+    out[0] = 0;
+    out[1] = 0;
 
     switch(m_currentState) {
       case navigationState::REVERSE:
@@ -415,13 +422,119 @@ void Navigation::decodeResolveSensors()
 
   }
 
-  std::array<int32_t> Navigation::followPreview() {
+  //Handles the engine logic to follow the preview point
+  std::array<int32_t,2> Navigation::followPreview() {
     return forward();
   }
-  std::array<int32_t> Navigation::forward() {
-    return ;
+
+
+  std::array<int32_t,2> Navigation::forward() {
+    std::array<int32_t, 2> out;
+    out[0] = E_FORWARD;
+    out[1] = E_FORWARD;
+    return out;
+  }
+
+
+
+  //Different versions of modifierHandling
+  
+  bool Navigation::modifierHandling(std::vector<double> since, std::vector<double> until) 
+  {
+    if (m_currentModifer == stateModifier::NONE) {
+      return true;
+
+    } else if (m_currentModifer == stateModifier::DELAY) {
+      if (since.size() != until.size()) {
+        return false;
+      }
+
+      for(uint i=0; i < since.size(); i++){
+        if (since[i] <= until[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  bool Navigation::modifierHandling(std::vector<odcore::data::TimeStamp> since, std::vector<double> until) 
+  {
+    if (m_currentModifer == stateModifier::NONE) {
+      return true;
+
+    } else if (m_currentModifer == stateModifier::DELAY) {
+      if (since.size() != until.size()) {
+        return false;
+      }
+
+      for(uint i=0; i < since.size(); i++){
+        double t = static_cast<double>(m_t_Current.toMicroseconds() - since[i].toMicroseconds()) / 1000000.0;
+        if (t <= until[i]) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
   }
   
+  bool Navigation::modifierHandling(std::vector<double> since, double until)
+  {
+    if (m_currentModifer == stateModifier::NONE) {
+      return true;
+
+    } else if (m_currentModifer == stateModifier::DELAY) {
+
+      for(uint i=0; i < since.size(); i++){
+        if (since[i] <= until) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  bool Navigation::modifierHandling(std::vector<odcore::data::TimeStamp> since, double until)
+  {
+    if (m_currentModifer == stateModifier::NONE) {
+      return true;
+
+    } else if (m_currentModifer == stateModifier::DELAY) {
+
+      for(uint i=0; i < since.size(); i++){
+        double t = static_cast<double>(m_t_Current.toMicroseconds() - since[i].toMicroseconds()) / 1000000.0;
+        if (t <= until) {
+          return false;
+        }
+      }
+      return true;
+    }
+    return false;
+  }
+
+  bool Navigation::modifierHandling(odcore::data::TimeStamp since, double until)
+  {
+    double t = static_cast<double>(m_t_Current.toMicroseconds() - since.toMicroseconds()) / 1000000.0;
+    return modifierHandling(t, until);
+  }
+
+  bool Navigation::modifierHandling(double since, double until){
+    if (m_currentModifer == stateModifier::NONE) {
+      return true;
+
+    } else if (m_currentModifer == stateModifier::DELAY) {
+      if (since > until) {
+        return true;
+      }
+
+    }
+    return false;
+  }
+
+
 
 /* 
   This method receives messages from all other modules (in the same conference 

@@ -37,14 +37,14 @@ enum class navigationState
   ROTATE_RIGHT,
   ROTATE_LEFT,
   FOLLOW,
-  PLAN,
+  PLAN
 };
 
 enum class stateModifier
 {
   NONE,
-  DELAY,
-}
+  DELAY
+};
 
 
 class Navigation : 
@@ -91,6 +91,13 @@ class Navigation :
   std::array<int32_t, 2> engineHandling();
   std::array<int32_t, 2> followPreview();
   std::array<int32_t, 2> forward();
+  bool modifierHandling(std::vector<odcore::data::TimeStamp> since, std::vector<double> until);
+  bool modifierHandling(std::vector<odcore::data::TimeStamp> since, double until);
+  bool modifierHandling(odcore::data::TimeStamp since, double until);
+  bool modifierHandling(std::vector<double> since, std::vector<double> until);
+  bool modifierHandling(std::vector<double> since, double until);
+  bool modifierHandling(double since, double until);
+
 
 
   odcore::base::Mutex m_mutex;
