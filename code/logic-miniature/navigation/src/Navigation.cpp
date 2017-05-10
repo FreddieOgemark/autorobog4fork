@@ -439,7 +439,7 @@ void Navigation::decodeResolveSensors()
 
   //Different versions of modifierHandling
   
-  bool Navigation::modifierHandling(std::vector<double> since, std::vector<double> until) 
+  bool Navigation::modifierHandling(const std::vector<double> &since, const std::vector<double> &until) 
   {
     if (m_currentModifer == stateModifier::NONE) {
       return true;
@@ -459,7 +459,7 @@ void Navigation::decodeResolveSensors()
     return false;
   }
 
-  bool Navigation::modifierHandling(std::vector<odcore::data::TimeStamp> since, std::vector<double> until) 
+  bool Navigation::modifierHandling(const std::vector<odcore::data::TimeStamp> &since, const std::vector<double> &until) 
   {
     if (m_currentModifer == stateModifier::NONE) {
       return true;
@@ -480,7 +480,7 @@ void Navigation::decodeResolveSensors()
     return false;
   }
   
-  bool Navigation::modifierHandling(std::vector<double> since, double until)
+  bool Navigation::modifierHandling(const std::vector<double> &since, const double &until)
   {
     if (m_currentModifer == stateModifier::NONE) {
       return true;
@@ -497,7 +497,7 @@ void Navigation::decodeResolveSensors()
     return false;
   }
 
-  bool Navigation::modifierHandling(std::vector<odcore::data::TimeStamp> since, double until)
+  bool Navigation::modifierHandling(const std::vector<odcore::data::TimeStamp> &since, const double &until)
   {
     if (m_currentModifer == stateModifier::NONE) {
       return true;
@@ -515,13 +515,13 @@ void Navigation::decodeResolveSensors()
     return false;
   }
 
-  bool Navigation::modifierHandling(odcore::data::TimeStamp since, double until)
+  bool Navigation::modifierHandling(const odcore::data::TimeStamp &since, const double &until)
   {
     double t = static_cast<double>(m_t_Current.toMicroseconds() - since.toMicroseconds()) / 1000000.0;
     return modifierHandling(t, until);
   }
 
-  bool Navigation::modifierHandling(double since, double until){
+  bool Navigation::modifierHandling(const double &since, const double &until){
     if (m_currentModifer == stateModifier::NONE) {
       return true;
 

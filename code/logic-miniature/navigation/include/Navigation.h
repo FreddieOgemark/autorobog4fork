@@ -91,12 +91,12 @@ class Navigation :
   std::array<int32_t, 2> engineHandling();
   std::array<int32_t, 2> followPreview();
   std::array<int32_t, 2> forward();
-  bool modifierHandling(std::vector<odcore::data::TimeStamp> since, std::vector<double> until);
-  bool modifierHandling(std::vector<odcore::data::TimeStamp> since, double until);
-  bool modifierHandling(odcore::data::TimeStamp since, double until);
-  bool modifierHandling(std::vector<double> since, std::vector<double> until);
-  bool modifierHandling(std::vector<double> since, double until);
-  bool modifierHandling(double since, double until);
+  bool modifierHandling(const std::vector<odcore::data::TimeStamp> &since, const std::vector<double> &until);
+  bool modifierHandling(const std::vector<odcore::data::TimeStamp> &since, const double &until);
+  bool modifierHandling(const odcore::data::TimeStamp &since, const double &until);
+  bool modifierHandling(const std::vector<double> &since, const std::vector<double> &until);
+  bool modifierHandling(const std::vector<double> &since, const double &until);
+  bool modifierHandling(const double &since, const double &until);
 
 
 
