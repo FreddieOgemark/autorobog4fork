@@ -26,6 +26,9 @@
 #include <opendavinci/odcore/base/Mutex.h>
 #include <opendavinci/odcore/base/module/TimeTriggeredConferenceClientModule.h>
 
+#include <opendlv/data/environment/Line.h>
+#include <opendlv/data/environment/Point3.h>
+
 namespace opendlv {
 namespace logic {
 namespace miniature {
@@ -97,10 +100,13 @@ class Navigation :
   bool modifierHandling(const std::vector<double> &since, const std::vector<double> &until);
   bool modifierHandling(const std::vector<double> &since, const double &until);
   bool modifierHandling(const double &since, const double &until);
-
+  std::vector<data::environment::Point3> ReadPointString(std::string const &) const;
 
 
   odcore::base::Mutex m_mutex;
+  std::vector<data::environment::Line> m_outerWalls;
+  std::vector<data::environment::Line> m_innerWalls;
+  std::vector<data::environment::Point3> m_pointsOfInterest;
   std::map<uint16_t, float> m_analogReadings;
   std::map<uint16_t, bool> m_gpioReadings;
   std::vector<uint16_t> m_gpioOutputPins;
