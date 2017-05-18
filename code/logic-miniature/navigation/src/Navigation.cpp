@@ -19,7 +19,6 @@
 
 #include <cstdlib>
 #include <iostream>
-
 #include <opendavinci/odcore/base/KeyValueConfiguration.h>
 #include <opendavinci/odcore/base/Lock.h>
 #include <opendavinci/odcore/data/Container.h>
@@ -68,6 +67,8 @@ const int32_t Navigation::E_DYN_TURN_SPEED = 15000;
 
 const uint32_t Navigation::UPDATE_FREQ = 50;
 
+const uint8_t Navigation::WALL_MARGINS = 1;
+
 
 /*
   Constructor.
@@ -82,6 +83,7 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_gpioReadings()
     , m_gpioOutputPins()
     , m_pwmOutputPins()
+    , m_graph()
 
     , m_currentState()
     , m_lastState()
@@ -97,6 +99,10 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_s_w_FrontRight_t()
     , m_updateCounter(0)
     , m_debug(true)
+    , m_gpsFix(false)
+    , m_posX()
+    , m_posY()
+    , m_Yaw()
 {
   m_lastState =  navigationState::PLAN;
   m_currentState = navigationState::PLAN;
@@ -170,6 +176,8 @@ void Navigation::setUp()
   for (uint32_t i = 0; i < m_pointsOfInterest.size(); i++) {
     std::cout << "Point of interest " << i << ": " << m_pointsOfInterest[i].toString() << std::endl;
   }
+
+  createGraph();
 }
 
 /*
@@ -209,6 +217,10 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
 
     // MotorDuties[0] is left Engine
     // MotorDuties[1] is right Engine
+
+    std::cout << "Motor Duty" << m_MotorDuties[0] << ":" <<  m_MotorDuties[1] << std::endl;
+
+
     if (motorDuties[0] != m_MotorDuties[0] or 
         motorDuties[1] != m_MotorDuties[1] or 
         old_state != m_currentState or
@@ -372,7 +384,7 @@ void Navigation::decodeResolveSensors()
       case navigationState::PLAN:
         state = "PLAN";
         if (m_updateCounter == 1) {
-          pathPlanning();
+          calculatePath();
         } else if (m_updateCounter > 1) {
           outState = "FOLLOW";
           m_currentState = navigationState::FOLLOW;
@@ -450,7 +462,11 @@ void Navigation::decodeResolveSensors()
         break;
 
       case navigationState::FOLLOW:
+      if (m_gpsFix)
         return followPreview();
+      else
+        return forward();
+      
 
       case navigationState::PLAN:
         out[0] = E_STILL;
@@ -635,6 +651,137 @@ std::vector<data::environment::Point3> Navigation::ReadPointString(std::string c
   }
   return points;
 }
+
+void Navigation::createGraph(void){
+
+    //data::environment::Point3 pointX(WALL_MARGINS, 0, 0);
+    //data::environment::Point3 pointY(0, WALL_MARGINS, 0);
+
+    std::vector<std::array<float, 4>> inWallLimits;
+    std::array<float, 4> inWallLimit = {{0, 0, 0, 0}};
+    std::array<float, 4> outWallLimit = {{0, 0, 0, 0}};
+    int t = 0;
+
+    for (auto lineInner : m_innerWalls) {
+      inWallLimit[0] = ((lineInner.getA().getX()+WALL_MARGINS) > (lineInner.getB().getX()+WALL_MARGINS)) ? (lineInner.getA().getX()+WALL_MARGINS) : (lineInner.getB().getX()+WALL_MARGINS);
+      inWallLimit[1] = ((lineInner.getA().getX()-WALL_MARGINS) < (lineInner.getB().getX()-WALL_MARGINS)) ? (lineInner.getA().getX()-WALL_MARGINS) : (lineInner.getB().getX()-WALL_MARGINS);
+      inWallLimit[2] = ((lineInner.getA().getY()+WALL_MARGINS) > (lineInner.getB().getY()+WALL_MARGINS)) ? (lineInner.getA().getY()+WALL_MARGINS) : (lineInner.getB().getY()+WALL_MARGINS);
+      inWallLimit[3] = ((lineInner.getA().getY()-WALL_MARGINS) < (lineInner.getB().getY()-WALL_MARGINS)) ? (lineInner.getA().getY()-WALL_MARGINS) : (lineInner.getB().getY()-WALL_MARGINS);
+
+      inWallLimits.push_back(inWallLimit);
+      std::cout << "innerWalls:" << inWallLimit[0] << ","<< inWallLimit[1] << ","<< inWallLimit[2] << ","<< inWallLimit[3] << std::endl;
+
+      t++;
+    }
+
+    t = 1;
+
+    for (auto lineOuter : m_outerWalls) {
+      switch(t){
+        case 1:
+          outWallLimit[2] = ((lineOuter.getA().getY()+WALL_MARGINS) > (lineOuter.getB().getY()+WALL_MARGINS)) ? (lineOuter.getA().getY()+WALL_MARGINS) : (lineOuter.getB().getY()+WALL_MARGINS);
+          break;
+        case 2:
+          outWallLimit[0] = ((lineOuter.getA().getX()+WALL_MARGINS) > (lineOuter.getB().getX()+WALL_MARGINS)) ? (lineOuter.getA().getX()+WALL_MARGINS) : (lineOuter.getB().getX()+WALL_MARGINS);
+          break;
+        case 3:
+          outWallLimit[3] = ((lineOuter.getA().getY()-WALL_MARGINS) < (lineOuter.getB().getY()-WALL_MARGINS)) ? (lineOuter.getA().getY()-WALL_MARGINS) : (lineOuter.getB().getY()-WALL_MARGINS);
+          break;
+        case 4:
+          outWallLimit[1] = ((lineOuter.getA().getX()-WALL_MARGINS) < (lineOuter.getB().getX()-WALL_MARGINS)) ? (lineOuter.getA().getX()-WALL_MARGINS) : (lineOuter.getB().getX()-WALL_MARGINS);
+          break;
+        default:
+          break;
+    }
+     
+      t++;
+    }
+      std::cout << "OuterWalls:" << outWallLimit[0] << ","<< outWallLimit[1] << ","<< outWallLimit[2] << ","<< outWallLimit[3] << std::endl;
+
+      t = 1;
+      bool blocked = false;
+      opendlv::logic::miniature::graph currentGraph;
+      data::environment::Point3 currentNode(0, 0, 0);
+
+      for (double yNodes = round((double) outWallLimit[2]+0.5);  yNodes < round((double) outWallLimit[3]+0.5); yNodes += 2){
+        for (double xNodes = round((double) outWallLimit[0]+0.5); xNodes < round((double) outWallLimit[1]+0.5); xNodes += 2){
+            blocked = false;
+            for(auto innerArray : inWallLimits){
+              if (xNodes < (double) innerArray[0] && xNodes > (double) innerArray[1] && yNodes < (double) innerArray[2] && yNodes > (double) innerArray[3]){
+                  blocked = true;
+                  break;
+              }
+        
+            }
+            
+            if (!blocked){
+              currentNode.setX(xNodes);
+              currentNode.setY(yNodes);
+              currentGraph.node = currentNode;
+              currentGraph.dist = 100000;
+              m_graph.push_back(currentGraph);
+
+              std::cout << "Nodes" << currentNode.toString() << "," << currentGraph.dist << std::endl;
+              t++;
+            }
+         }
+      }
+}
+
+void Navigation::calculatePath(){
+    std::vector<graph> graphStorage = m_graph;
+    std::vector<graph> graphSearch = m_graph;
+
+
+    data::environment::Point3 startNode(round(m_posX/2)*2, round(m_posY/2)*2, 0);
+    data::environment::Point3 stopNode(round(m_pointsOfInterest.front().getX()/2)*2, round(m_pointsOfInterest.front().getY()/2)*2, 0);
+    
+    std::vector<data::environment::Point3> neighNodes;
+
+    data::environment::Point3 neighNode(0,0,0);
+
+
+    int t = 0;
+    for (auto graphs : graphSearch){
+      if (graphs.node == startNode){
+        graphStorage.at(t).dist = 0;
+        graphSearch.at(t).dist = 0;
+        break;
+      }
+      t++;
+    }
+    
+
+    while(!graphSearch.empty()){
+        int loopIndex = 0;
+        int smallestDistInd = 0;
+
+        for (auto graphs : graphSearch){
+          if (graphs.dist < graphSearch.at(smallestDistInd).dist){
+            smallestDistInd = loopIndex;
+            break;
+          }
+          loopIndex++;
+        }
+        
+
+        
+        //neighNodes.push_back( data::environment::Point3())
+
+        
+
+
+
+
+        break;
+    }
+
+
+
+
+
+}
+
 
 }
 }

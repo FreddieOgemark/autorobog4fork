@@ -43,12 +43,17 @@ enum class navigationState
   PLAN
 };
 
+struct graph{
+  data::environment::Point3 node;
+  data::environment::Point3 prevPoint;
+  int dist;
+};
+
 enum class stateModifier
 {
   NONE,
   DELAY
 };
-
 
 class Navigation : 
   public odcore::base::module::TimeTriggeredConferenceClientModule {
@@ -84,6 +89,8 @@ class Navigation :
 
   static const uint32_t UPDATE_FREQ;
 
+  static const uint8_t WALL_MARGINS;
+
 
   void setUp();
   void tearDown();
@@ -101,6 +108,8 @@ class Navigation :
   bool modifierHandling(const std::vector<double> &since, const double &until);
   bool modifierHandling(const double &since, const double &until);
   std::vector<data::environment::Point3> ReadPointString(std::string const &) const;
+  void createGraph(void);
+  void calculatePath();
 
 
   odcore::base::Mutex m_mutex;
@@ -111,6 +120,7 @@ class Navigation :
   std::map<uint16_t, bool> m_gpioReadings;
   std::vector<uint16_t> m_gpioOutputPins;
   std::vector<uint16_t> m_pwmOutputPins;
+  std::vector<graph> m_graph;
 
   navigationState m_currentState;
   navigationState m_lastState;
@@ -126,6 +136,11 @@ class Navigation :
   odcore::data::TimeStamp m_s_w_FrontRight_t;
   uint16_t m_updateCounter;
   bool m_debug;
+  bool m_gpsFix;
+
+  double m_posX;
+  double m_posY;
+  double m_Yaw;
 
 
 };

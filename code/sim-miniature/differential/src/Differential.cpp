@@ -32,6 +32,12 @@
 
 #include "Differential.h"
 
+#define ROBOT_RADIUS 0.12
+#define WHEEL_RADIUS 0.06
+#define VELOCITY_0 0.5
+#define TIME_1 3
+#define TIME_2 10
+
 namespace opendlv {
 namespace sim {
 namespace miniature {
@@ -49,6 +55,7 @@ Differential::Differential(const int &argc, char **argv)
   , m_deltaTime()
   , m_leftWheelAngularVelocity(0.0)
   , m_rightWheelAngularVelocity(0.0)
+  , m_globalTime()
 {
 }
 
@@ -141,24 +148,30 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Differential::body()
 
     double velX = 0.0; // Placeholder.
     double velY = 0.0; // Placeholder.
-    //double yawRate = 0.0; // Placeholder.
-   
-    std::cout << "TODO: Add kinematic equations." << std::endl;
-    ///// Kinematic equations above.
+    double yawRate = 0.0; // Placeholder.
+    double velL = m_leftWheelAngularVelocity*WHEEL_RADIUS;
+    double velR = m_rightWheelAngularVelocity*WHEEL_RADIUS;
 
 
+
+    velX = (velL+velR)/(2)*cos(prevYaw);
+    velY = (velL+velR)/(2)*sin(prevYaw);
+    yawRate = -(velL-velR)/(2*ROBOT_RADIUS);
 
 
     ///// TODO: Integrate simulation below. The time step is already saved in
     ///// a global variable.
 
-    double posX = prevPosX; // Placeholder.
-    double posY = prevPosY; // Placeholder.
-    double yaw = prevYaw; // Placeholder.
+    double posX = prevPosX + velX*m_deltaTime; // Placeholder.
+    double posY = prevPosY + velY*m_deltaTime; // Placeholder.
+    double yaw = prevYaw + yawRate*m_deltaTime; // Placeholder.
     
-    std::cout << "TODO: Integrate simulation." << std::endl;
+    //std::cout << "TODO: Integrate simulation." << std::endl;
     ///// Integration above.
 
+    std::cout << "PosX: " << posX << " Pos Y: " << posY << " Yaw: " << yaw << std::endl;
+
+    m_globalTime = m_globalTime + m_deltaTime;
 
 
     
