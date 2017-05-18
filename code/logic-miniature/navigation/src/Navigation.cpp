@@ -741,6 +741,7 @@ void Navigation::calculatePath(){
 
     //data::environment::Point3 startNode(round(m_posX/2)*2, round(m_posY/2)*2, 0);
 
+
     data::environment::Point3 startNode(round(m_pointsOfInterest.at(3).getX()/2)*2, round(m_pointsOfInterest.at(3).getY()/2)*2, 0);
     data::environment::Point3 stopNode(round(m_pointsOfInterest.at(2).getX()/2)*2, round(m_pointsOfInterest.at(2).getY()/2)*2, 0);
     
@@ -849,6 +850,8 @@ void Navigation::calculatePath(){
 
         //cout << "endNode" << stopNode.toString() << std::endl;
 
+        m_path.clear();
+
         while(graphStorage.at(prevIndex).node != startNode){
             currentNode = graphStorage.at(prevIndex).node;
             m_path.push_back(currentNode);
@@ -868,6 +871,8 @@ void Navigation::calculatePath(){
           //m_path.push_back()
         }
         m_path.push_back(startNode);
+
+        std::reverse(m_path.begin(), m_path.end());
 
         
 
