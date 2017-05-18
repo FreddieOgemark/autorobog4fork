@@ -512,7 +512,7 @@ void Navigation::decodeResolveSensors()
       length = diff.length();
 
       if (length > MAX_PREVIEW_LENGTH || it > 1000) {
-        m_currentPreview = 0;
+        //m_currentPreview = 0;
         m_currentState = navigationState::PLAN;
         return out;
       } else if(length > MIN_PREVIEW_LENGTH || m_currentPreview == (m_path.size() - 1)) {
@@ -906,6 +906,8 @@ void Navigation::calculatePath(){
 
         //cout << "endNode" << stopNode.toString() << std::endl;
 
+        m_path.clear();
+
         while(graphStorage.at(prevIndex).node != startNode){
             currentNode = graphStorage.at(prevIndex).node;
             m_path.push_back(currentNode);
@@ -925,6 +927,13 @@ void Navigation::calculatePath(){
           //m_path.push_back()
         }
         m_path.push_back(startNode);
+
+        std::reverse(m_path.begin(), m_path.end());
+	m_currentPreview = 0;
+
+        
+
+
 
 
 }
