@@ -151,6 +151,7 @@ class Navigation :
   data::environment::Point3 m_currentPosition;
   double m_currentYaw;
   uint32_t m_currentPreview;
+  uint8_t m_goToInterestPoint;
 
 
 

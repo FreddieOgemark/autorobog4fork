@@ -56,8 +56,8 @@ const double Navigation::T_TURN = 1;
 
 const double Navigation::T_LPS_TIMEOUT = 1;
 const double Navigation::GOAL_TOLERANCE = 2;
-const double Navigation::MIN_PREVIEW_LENGTH = 4;
-const double Navigation::MAX_PREVIEW_LENGTH = 16;
+const double Navigation::MIN_PREVIEW_LENGTH = 3;
+const double Navigation::MAX_PREVIEW_LENGTH = 10;
 
 const double Navigation::TURN_RATE = 0.5;
 
@@ -76,7 +76,7 @@ const int32_t Navigation::E_DYN_FOLLOW_SPEED =  8000; // max 10500
 
 const uint32_t Navigation::UPDATE_FREQ = 50;
 
-const uint8_t Navigation::WALL_MARGINS = 1;
+const uint8_t Navigation::WALL_MARGINS = 2;
 
 
 /*
@@ -113,6 +113,7 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_currentPosition(-1000,-1000,0)
     , m_currentYaw(0)
     , m_currentPreview()
+    , m_goToInterestPoint(1)
 {
   m_lastState =  navigationState::PLAN;
   m_currentState = navigationState::PLAN;
@@ -502,6 +503,8 @@ void Navigation::decodeResolveSensors()
     std::array<int32_t, 2> out;
     out[0] = 0;
     out[1] = 0;    
+    double deltaDiff1 = 0;
+    double deltaDiff2 = 0;
     double delta = 0;
     double length = 0;
 
@@ -512,15 +515,24 @@ void Navigation::decodeResolveSensors()
       data::environment::Point3 diff = preview - m_currentPosition;
       length = diff.length();
 
+       if (m_path.back().getDistanceTo(m_currentPosition) < GOAL_TOLERANCE){
+          m_goToInterestPoint = rand() % 4;
+          m_currentState = navigationState::PLAN;
+          return out;
+      }
+          
       if (length > MAX_PREVIEW_LENGTH || it > 1000) {
         //m_currentPreview = 0;
         m_currentState = navigationState::PLAN;
         return out;
       } else if(length > MIN_PREVIEW_LENGTH || m_currentPreview == (m_path.size() - 1)) {
-        delta = TURN_RATE * (diff.getAngleXY() - m_currentYaw);
+          deltaDiff1 = (diff.getAngleXY() - m_currentYaw);
+          deltaDiff2 = (deltaDiff1/abs(deltaDiff1))*(abs(deltaDiff1) -2*M_PI);
+
+          delta = TURN_RATE * (abs(deltaDiff1) < abs(deltaDiff2) ? deltaDiff1 : deltaDiff2); 
+
+        cout << "Delta:" << delta << ";" << length << ";" << diff.getAngleXY() << ";" << m_currentYaw << ";" << m_currentPreview << ";" << m_path.size() - 1 << std::endl;
         break;
-      } else if (length < GOAL_TOLERANCE && m_currentPreview == m_path.size() - 1){
-        return out;
       } else {
         m_currentPreview = m_currentPreview + 1;
       }
@@ -799,12 +811,15 @@ void Navigation::calculatePath(){
     std::vector<graph> graphSearch = m_graph;
 
 
-    data::environment::Point3 startNode(round(m_currentPosition.getX()/2)*2, round(m_currentPosition.getY()/2)*2, 0);
+    //data::environment::Point3 startNode(round(m_currentPosition.getX()/2)*2, round(m_currentPosition.getY()/2)*2, 0);
 
-    int endPoint = 0;
+    data::environment::Point3 startNode(0, 0, 0);
+    data::environment::Point3 stopNode(0, 0, 0);
+
+    //int endPoint = 0;
 
     //data::environment::Point3 startNode(round(m_pointsOfInterest.at(3).getX()/2)*2, round(m_pointsOfInterest.at(3).getY()/2)*2, 0);
-    data::environment::Point3 stopNode(round(m_pointsOfInterest.at(endPoint).getX()/2)*2, round(m_pointsOfInterest.at(endPoint).getY()/2)*2, 0);
+    //data::environment::Point3 stopNode(round(m_pointsOfInterest.at(m_goToInterestPoint).getX()/2)*2, round(m_pointsOfInterest.at(m_goToInterestPoint).getY()/2)*2, 0);
     
     std::vector<data::environment::Point3> neighNodes;
 
@@ -812,15 +827,41 @@ void Navigation::calculatePath(){
     data::environment::Point3 currentNode(0,0,0);
 
     int t = 0;
+    double shortestDist = 1000;
+    int shortestDistInd = 0;
+
     for (auto graphs : graphSearch){
-      if (graphs.node == startNode){
-        graphStorage.at(t).dist = 0;
-        graphSearch.at(t).dist = 0;
-        cout << "startNode" << graphs.node.toString() << std::endl;
-        break;
+      if (graphs.node.getDistanceTo(m_currentPosition) < shortestDist){
+        shortestDistInd = t;
+        shortestDist = graphs.node.getDistanceTo(m_currentPosition);
       }
       t++;
     }
+
+    graphStorage.at(shortestDistInd).dist = 0;
+    graphSearch.at(shortestDistInd).dist = 0;
+    startNode = graphStorage.at(shortestDistInd).node;
+
+    cout << "startNode:" << startNode.toString() << std::endl;
+
+
+    t = 0;
+    shortestDist = 1000;
+    shortestDistInd = 0;
+
+    for (auto graphs : graphSearch){
+      if (graphs.node.getDistanceTo(m_pointsOfInterest.at(m_goToInterestPoint)) < shortestDist){
+        shortestDistInd = t;
+        shortestDist = graphs.node.getDistanceTo(m_pointsOfInterest.at(m_goToInterestPoint));
+      }
+      t++;
+    }
+    stopNode = graphStorage.at(shortestDistInd).node;
+
+    cout << "stopNode:" << stopNode.toString() << std::endl;
+
+
+
     
     int smallestDistInd = 0;
     int loopIndex = 0;
