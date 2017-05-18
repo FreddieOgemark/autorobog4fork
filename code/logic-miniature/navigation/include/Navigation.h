@@ -121,6 +121,7 @@ class Navigation :
   std::vector<uint16_t> m_gpioOutputPins;
   std::vector<uint16_t> m_pwmOutputPins;
   std::vector<graph> m_graph;
+  std::vector<data::environment::Point3> m_path;
 
   navigationState m_currentState;
   navigationState m_lastState;

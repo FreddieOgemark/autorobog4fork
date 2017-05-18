@@ -84,6 +84,7 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_gpioOutputPins()
     , m_pwmOutputPins()
     , m_graph()
+    , m_path()
 
     , m_currentState()
     , m_lastState()
@@ -385,6 +386,11 @@ void Navigation::decodeResolveSensors()
         state = "PLAN";
         if (m_updateCounter == 1) {
           calculatePath();
+
+          for (auto node : m_path){
+              cout << "Path:" << node.toString() << std::endl; 
+
+          }
         } else if (m_updateCounter > 1) {
           outState = "FOLLOW";
           m_currentState = navigationState::FOLLOW;
@@ -721,7 +727,7 @@ void Navigation::createGraph(void){
               currentGraph.dist = 100000;
               m_graph.push_back(currentGraph);
 
-              std::cout << "Nodes" << currentNode.toString() << "," << currentGraph.dist << std::endl;
+              //std::cout << "Nodes" << currentNode.toString() << "," << currentGraph.dist << std::endl;
               t++;
             }
          }
@@ -733,49 +739,137 @@ void Navigation::calculatePath(){
     std::vector<graph> graphSearch = m_graph;
 
 
-    data::environment::Point3 startNode(round(m_posX/2)*2, round(m_posY/2)*2, 0);
-    data::environment::Point3 stopNode(round(m_pointsOfInterest.front().getX()/2)*2, round(m_pointsOfInterest.front().getY()/2)*2, 0);
+    //data::environment::Point3 startNode(round(m_posX/2)*2, round(m_posY/2)*2, 0);
+
+    data::environment::Point3 startNode(round(m_pointsOfInterest.at(3).getX()/2)*2, round(m_pointsOfInterest.at(3).getY()/2)*2, 0);
+    data::environment::Point3 stopNode(round(m_pointsOfInterest.at(2).getX()/2)*2, round(m_pointsOfInterest.at(2).getY()/2)*2, 0);
     
     std::vector<data::environment::Point3> neighNodes;
 
     data::environment::Point3 neighNode(0,0,0);
-
+    data::environment::Point3 currentNode(0,0,0);
 
     int t = 0;
     for (auto graphs : graphSearch){
       if (graphs.node == startNode){
         graphStorage.at(t).dist = 0;
         graphSearch.at(t).dist = 0;
+        cout << "startNode" << graphs.node.toString() << std::endl;
         break;
       }
       t++;
     }
     
+    int smallestDistInd = 0;
+    int loopIndex = 0;
 
     while(!graphSearch.empty()){
-        int loopIndex = 0;
-        int smallestDistInd = 0;
+        loopIndex = 0;
+        smallestDistInd = 0;
 
         for (auto graphs : graphSearch){
           if (graphs.dist < graphSearch.at(smallestDistInd).dist){
             smallestDistInd = loopIndex;
+          }
+          loopIndex++;
+        }
+        cout << "SmallestNode" << graphSearch.at(smallestDistInd).node.toString() << std::endl;
+        neighNodes.clear();
+
+        neighNode.setX(graphSearch.at(smallestDistInd).node.getX()-2);
+        neighNode.setY(graphSearch.at(smallestDistInd).node.getY());
+        neighNodes.push_back(neighNode);
+
+        neighNode.setX(graphSearch.at(smallestDistInd).node.getX()+2);
+        neighNode.setY(graphSearch.at(smallestDistInd).node.getY());
+        neighNodes.push_back(neighNode);
+
+        neighNode.setX(graphSearch.at(smallestDistInd).node.getX());
+        neighNode.setY(graphSearch.at(smallestDistInd).node.getY()-2);
+        neighNodes.push_back(neighNode);
+
+        neighNode.setX(graphSearch.at(smallestDistInd).node.getX());
+        neighNode.setY(graphSearch.at(smallestDistInd).node.getY()+2);
+        neighNodes.push_back(neighNode);
+
+        int neighLoops = 0;
+        int neigthStoreLoop = 0;
+        int tempDist = 0;
+
+
+        for (auto neighNodePoint : neighNodes){
+              neighLoops = 0;
+              //cout << "Neighbor" << neighNodePoint.toString() << std::endl;
+              loopIndex = 0;
+              for (auto graphs : graphSearch){
+                  if (graphs.node == neighNodePoint){
+                      tempDist = (graphSearch.at(smallestDistInd).dist + 2);
+
+                      if(tempDist < graphSearch.at(loopIndex).dist){
+                        //cout << "Dist" << tempDist << std::endl;
+                          graphSearch.at(loopIndex).dist = tempDist;
+
+                            neigthStoreLoop = 0;
+                            for (auto graphs2 : graphStorage){
+                              if (graphs2.node == neighNodePoint){
+                                graphStorage.at(neigthStoreLoop).prevPoint = graphSearch.at(smallestDistInd).node;
+                                graphStorage.at(neigthStoreLoop).dist = tempDist;
+                                //cout << "Neighbor" << graphs2.node.toString() << std::endl;
+                                break;
+                              }
+                              neigthStoreLoop++;
+                            }
+
+                      }
+
+                    }
+                 loopIndex++;
+
+                }
+                neighLoops++;
+              }
+
+              graphSearch.erase(graphSearch.begin() + smallestDistInd);
+        }
+        
+
+        loopIndex = 0;
+        int bestIndex = 0;
+
+        for (auto graphs : graphStorage){
+          if (graphs.node == stopNode){
+            bestIndex = loopIndex;
             break;
           }
           loopIndex++;
         }
-        
+
+        int prevIndex = 0;
+        prevIndex = bestIndex;
+
+        //cout << "endNode" << stopNode.toString() << std::endl;
+
+        while(graphStorage.at(prevIndex).node != startNode){
+            currentNode = graphStorage.at(prevIndex).node;
+            m_path.push_back(currentNode);
+            //cout << "Path" << currentNode.toString() << std::endl;
+
+
+            loopIndex = 0;
+
+            for (auto graphs2 : graphStorage){
+                  if (graphs2.node == graphStorage.at(prevIndex).prevPoint){
+                      prevIndex = loopIndex;
+                      break;
+                  }
+                  loopIndex++;
+            }
+
+          //m_path.push_back()
+        }
+        m_path.push_back(startNode);
 
         
-        //neighNodes.push_back( data::environment::Point3())
-
-        
-
-
-
-
-        break;
-    }
-
 
 
 
