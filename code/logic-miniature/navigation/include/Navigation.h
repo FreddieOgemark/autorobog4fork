@@ -76,6 +76,7 @@ class Navigation :
   static const double T_TURN;
 
   static const double T_LPS_TIMEOUT;
+  static const double GOAL_TOLERANCE;
   static const double MIN_PREVIEW_LENGTH;
   static const double MAX_PREVIEW_LENGTH;
 

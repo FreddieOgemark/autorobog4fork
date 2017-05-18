@@ -55,6 +55,7 @@ const double Navigation::T_TURN = 1;
 
 
 const double Navigation::T_LPS_TIMEOUT = 1;
+const double Navigation::GOAL_TOLERANCE = 2;
 const double Navigation::MIN_PREVIEW_LENGTH = 4;
 const double Navigation::MAX_PREVIEW_LENGTH = 16;
 
@@ -66,7 +67,7 @@ const int32_t Navigation::E_ROTATE_RIGHT_L = 35000;
 const int32_t Navigation::E_ROTATE_RIGHT_R = -35000;
 const int32_t Navigation::E_ROTATE_LEFT_L  = -35000;
 const int32_t Navigation::E_ROTATE_LEFT_R  = 35000;
-const int32_t Navigation::E_STILL = 15000;
+const int32_t Navigation::E_STILL = 25000;
 const int32_t Navigation::E_DYN_TURN_SPEED = 15000;
 const int32_t Navigation::E_DYN_FOLLOW_SPEED =  8000; // max 10500
 
@@ -518,6 +519,8 @@ void Navigation::decodeResolveSensors()
       } else if(length > MIN_PREVIEW_LENGTH || m_currentPreview == (m_path.size() - 1)) {
         delta = TURN_RATE * (diff.getAngleXY() - m_currentYaw);
         break;
+      } else if (length < GOAL_TOLERANCE && m_currentPreview == m_path.size() - 1){
+        return out;
       } else {
         m_currentPreview = m_currentPreview + 1;
       }
@@ -796,10 +799,12 @@ void Navigation::calculatePath(){
     std::vector<graph> graphSearch = m_graph;
 
 
-    //data::environment::Point3 startNode(round(m_posX/2)*2, round(m_posY/2)*2, 0);
+    data::environment::Point3 startNode(round(m_currentPosition.getX()/2)*2, round(m_currentPosition.getY()/2)*2, 0);
 
-    data::environment::Point3 startNode(round(m_pointsOfInterest.at(3).getX()/2)*2, round(m_pointsOfInterest.at(3).getY()/2)*2, 0);
-    data::environment::Point3 stopNode(round(m_pointsOfInterest.at(2).getX()/2)*2, round(m_pointsOfInterest.at(2).getY()/2)*2, 0);
+    int endPoint = 0;
+
+    //data::environment::Point3 startNode(round(m_pointsOfInterest.at(3).getX()/2)*2, round(m_pointsOfInterest.at(3).getY()/2)*2, 0);
+    data::environment::Point3 stopNode(round(m_pointsOfInterest.at(endPoint).getX()/2)*2, round(m_pointsOfInterest.at(endPoint).getY()/2)*2, 0);
     
     std::vector<data::environment::Point3> neighNodes;
 
