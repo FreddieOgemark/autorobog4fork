@@ -54,14 +54,22 @@ const double Navigation::T_ROTATE_REVERSE = 0.2;
 const double Navigation::T_TURN = 1;
 
 
+const double Navigation::T_LPS_TIMEOUT = 1;
+const double Navigation::MIN_PREVIEW_LENGTH = 4;
+const double Navigation::MAX_PREVIEW_LENGTH = 16;
+
+const double Navigation::TURN_RATE = 0.5;
+
 const int32_t Navigation::E_FORWARD = 36000;
 const int32_t Navigation::E_REVERSE = -35000;
 const int32_t Navigation::E_ROTATE_RIGHT_L = 35000;
 const int32_t Navigation::E_ROTATE_RIGHT_R = -35000;
 const int32_t Navigation::E_ROTATE_LEFT_L  = -35000;
 const int32_t Navigation::E_ROTATE_LEFT_R  = 35000;
-const int32_t Navigation::E_STILL = 0;
+const int32_t Navigation::E_STILL = 15000;
 const int32_t Navigation::E_DYN_TURN_SPEED = 15000;
+const int32_t Navigation::E_DYN_FOLLOW_SPEED =  8000; // max 10500
+
 //const uint32_t Navigation::E_SEARCH = 55000;
 
 
@@ -92,6 +100,7 @@ Navigation::Navigation(const int &argc, char **argv)
 
     , m_t_Current()
     , m_t_Last()
+    , m_t_LPS()
     , m_MotorDuties()
 
     , m_s_w_FrontLeft(0)
@@ -100,10 +109,9 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_s_w_FrontRight_t()
     , m_updateCounter(0)
     , m_debug(true)
-    , m_gpsFix(false)
-    , m_posX()
-    , m_posY()
-    , m_Yaw()
+    , m_currentPosition(-1000,-1000,0)
+    , m_currentYaw(0)
+    , m_currentPreview()
 {
   m_lastState =  navigationState::PLAN;
   m_currentState = navigationState::PLAN;
@@ -448,6 +456,7 @@ void Navigation::decodeResolveSensors()
   */
   std::array<int32_t, 2> Navigation::engineHandling(){
     std::array<int32_t, 2> out;
+    double t2 = 0;
     out[0] = 0;
     out[1] = 0;
 
@@ -468,11 +477,13 @@ void Navigation::decodeResolveSensors()
         break;
 
       case navigationState::FOLLOW:
-      if (m_gpsFix)
-        return followPreview();
-      else
-        return forward();
-      
+        t2 = static_cast<double>(m_t_Current.toMicroseconds() - m_t_LPS.toMicroseconds()) / 1000000.0;
+        if (t2 > T_LPS_TIMEOUT) {
+          out = forward();
+        } else {
+          out = followPreview();
+        }
+        break;
 
       case navigationState::PLAN:
         out[0] = E_STILL;
@@ -487,7 +498,38 @@ void Navigation::decodeResolveSensors()
 
   //Handles the engine logic to follow the preview point
   std::array<int32_t,2> Navigation::followPreview() {
-    return forward();
+    std::array<int32_t, 2> out;
+    out[0] = 0;
+    out[1] = 0;    
+    double delta = 0;
+    double length = 0;
+
+    int it = 0;
+
+    while(true) {
+      data::environment::Point3 preview = m_path[m_currentPreview];
+      data::environment::Point3 diff = preview - m_currentPosition;
+      length = diff.length();
+
+      if (length > MAX_PREVIEW_LENGTH || it > 1000) {
+        m_currentPreview = 0;
+        m_currentState = navigationState::PLAN;
+        return out;
+      } else if(length > MIN_PREVIEW_LENGTH || m_currentPreview == (m_path.size() - 1)) {
+        delta = TURN_RATE * (diff.getAngleXY() - m_currentYaw);
+        break;
+      } else {
+        m_currentPreview = m_currentPreview + 1;
+      }
+    }
+
+    // max forward = 360000
+    //  15000 < out < 360000
+
+    out[0] = E_STILL + E_DYN_FOLLOW_SPEED * (1 - delta);
+    out[1] = E_STILL + E_DYN_FOLLOW_SPEED * (1 + delta);
+    return out;
+
   }
 
 
@@ -637,6 +679,21 @@ void Navigation::nextContainer(odcore::data::Container &a_c)
 
     std::cout << "[" << getName() << "] Received a ToggleReading: "
         << reading.toString() << "." << std::endl;
+  } else if (dataType == opendlv::model::State::ID()) {
+    opendlv::model::State state = 
+        a_c.getData<opendlv::model::State>();
+
+    double positionX = static_cast<double>(state.getPosition().getX());
+    double positionY = static_cast<double>(state.getPosition().getY());
+    double yaw = static_cast<double>(state.getAngularDisplacement().getZ());
+
+    m_currentPosition = data::environment::Point3(positionX, positionY, 0);
+    m_currentYaw = yaw;
+    m_t_LPS = odcore::data::TimeStamp();
+
+
+    std::cout << "[" << getName() << "] Received a State: position "
+        << positionX << ", " << positionY << " yaw " << yaw << "." << std::endl;
   }
 }
 
@@ -868,10 +925,6 @@ void Navigation::calculatePath(){
           //m_path.push_back()
         }
         m_path.push_back(startNode);
-
-        
-
-
 
 
 }

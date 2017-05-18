@@ -75,6 +75,12 @@ class Navigation :
   static const double T_ROTATE_REVERSE;
   static const double T_TURN;
 
+  static const double T_LPS_TIMEOUT;
+  static const double MIN_PREVIEW_LENGTH;
+  static const double MAX_PREVIEW_LENGTH;
+
+  static const double TURN_RATE;
+
 
 
   static const int32_t E_FORWARD;
@@ -85,9 +91,11 @@ class Navigation :
   static const int32_t E_ROTATE_LEFT_R;
   static const int32_t E_STILL;
   static const int32_t E_DYN_TURN_SPEED;
+  static const int32_t E_DYN_FOLLOW_SPEED;
   //static const uint32_t E_SEARCH;
 
   static const uint32_t UPDATE_FREQ;
+
 
   static const uint8_t WALL_MARGINS;
 
@@ -129,6 +137,7 @@ class Navigation :
 
   odcore::data::TimeStamp m_t_Current;
   odcore::data::TimeStamp m_t_Last;
+  odcore::data::TimeStamp m_t_LPS;
   std::array<int32_t,2> m_MotorDuties;
 
   bool m_s_w_FrontLeft;
@@ -137,11 +146,11 @@ class Navigation :
   odcore::data::TimeStamp m_s_w_FrontRight_t;
   uint16_t m_updateCounter;
   bool m_debug;
-  bool m_gpsFix;
 
-  double m_posX;
-  double m_posY;
-  double m_Yaw;
+  data::environment::Point3 m_currentPosition;
+  double m_currentYaw;
+  uint32_t m_currentPreview;
+
 
 
 };
