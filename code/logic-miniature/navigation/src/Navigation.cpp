@@ -54,22 +54,22 @@ const double Navigation::T_ROTATE_REVERSE = 0.2;
 const double Navigation::T_TURN = 1;
 
 
-const double Navigation::T_LPS_TIMEOUT = 1;
-const double Navigation::GOAL_TOLERANCE = 2;
-const double Navigation::MIN_PREVIEW_LENGTH = 3;
+const double Navigation::T_LPS_TIMEOUT = 1000;
+const double Navigation::GOAL_TOLERANCE = 3;
+const double Navigation::MIN_PREVIEW_LENGTH = 4;
 const double Navigation::MAX_PREVIEW_LENGTH = 10;
 
-const double Navigation::TURN_RATE = 0.5;
+const double Navigation::TURN_RATE = 0.1;
 
-const int32_t Navigation::E_FORWARD = 36000;
+const int32_t Navigation::E_FORWARD = 35000;
 const int32_t Navigation::E_REVERSE = -35000;
 const int32_t Navigation::E_ROTATE_RIGHT_L = 35000;
 const int32_t Navigation::E_ROTATE_RIGHT_R = -35000;
 const int32_t Navigation::E_ROTATE_LEFT_L  = -35000;
 const int32_t Navigation::E_ROTATE_LEFT_R  = 35000;
-const int32_t Navigation::E_STILL = 25000;
+const int32_t Navigation::E_STILL = 30000;
 const int32_t Navigation::E_DYN_TURN_SPEED = 15000;
-const int32_t Navigation::E_DYN_FOLLOW_SPEED =  8000; // max 10500
+const int32_t Navigation::E_DYN_FOLLOW_SPEED =  6000; // max 10500
 
 //const uint32_t Navigation::E_SEARCH = 55000;
 
@@ -113,7 +113,8 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_currentPosition(-1000,-1000,0)
     , m_currentYaw(0)
     , m_currentPreview()
-    , m_goToInterestPoint(1)
+    , m_goToInterestPoint(0)
+    , m_speakerDuty(0)
 {
   m_lastState =  navigationState::PLAN;
   m_currentState = navigationState::PLAN;
@@ -229,7 +230,8 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
     // MotorDuties[0] is left Engine
     // MotorDuties[1] is right Engine
 
-    std::cout << "Motor Duty" << m_MotorDuties[0] << ":" <<  m_MotorDuties[1] << std::endl;
+
+    std::cout << "Motor Duty L:" << m_MotorDuties[0] << " R:" <<  m_MotorDuties[1] << std::endl;
 
 
     if (motorDuties[0] != m_MotorDuties[0] or 
@@ -245,9 +247,12 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       }
       m_updateCounter = 0;
 
-
+      //motorDuties[0] = 30000;
+      //motorDuties[1] = 50000;
     
       //Left wheel
+
+
 
       //Power
       opendlv::proxy::PwmRequest request1(0, abs(motorDuties[0]));
@@ -296,6 +301,10 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       opendlv::proxy::ToggleRequest requestGpio2(31, rightMotorState2);
       odcore::data::Container c4(requestGpio2);
 
+      opendlv::proxy::PwmRequest requestSpeaker(0, m_speakerDuty);
+      odcore::data::Container cSpeak(requestSpeaker);
+      cSpeak.setSenderStamp(3);
+
       //Send the data
       getConference().send(c1);
       getConference().send(c2);
@@ -303,6 +312,7 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
       getConference().send(c4);
       getConference().send(c5);
       getConference().send(c6);
+      getConference().send(cSpeak);
 
     } else {
       m_updateCounter += 1;
@@ -417,12 +427,12 @@ void Navigation::decodeResolveSensors()
 
         } else if (m_s_w_FrontRight) {
           outState = "ROTATE_LEFT";
-          m_currentState = navigationState::ROTATE_LEFT;
+          m_currentState = navigationState::REVERSE;
           m_currentModifer = stateModifier::DELAY;
 
         } else if (m_s_w_FrontLeft) {
           outState = "ROTATE_RIGHT";
-          m_currentState = navigationState::ROTATE_RIGHT;
+          m_currentState = navigationState::REVERSE;
           m_currentModifer = stateModifier::DELAY;
         }
         //TODO: logic for ultrasound
@@ -488,8 +498,8 @@ void Navigation::decodeResolveSensors()
         break;
 
       case navigationState::PLAN:
-        out[0] = E_STILL;
-        out[1] = E_STILL;
+        out[0] = 0;
+        out[1] = 0;
         break;
     }
 
@@ -509,14 +519,19 @@ void Navigation::decodeResolveSensors()
     double length = 0;
 
     int it = 0;
+    data::environment::Point3 preview;
 
     while(true) {
-      data::environment::Point3 preview = m_path[m_currentPreview];
+      preview = m_path[m_currentPreview];
       data::environment::Point3 diff = preview - m_currentPosition;
       length = diff.length();
 
        if (m_path.back().getDistanceTo(m_currentPosition) < GOAL_TOLERANCE){
-          m_goToInterestPoint = rand() % 4;
+          if (m_goToInterestPoint == 0) {
+            m_goToInterestPoint = 2;
+          } else {
+            m_goToInterestPoint = 0;
+          }
           m_currentState = navigationState::PLAN;
           return out;
       }
@@ -543,6 +558,7 @@ void Navigation::decodeResolveSensors()
 
     out[0] = E_STILL + E_DYN_FOLLOW_SPEED * (1 - delta);
     out[1] = E_STILL + E_DYN_FOLLOW_SPEED * (1 + delta);
+    std::cout << "[NAVSTATE:" << m_path[m_path.size()-1].toString() << " P: " << preview.toString() << " L:" << out[0] << " R:" << out[1] << std::endl;
     return out;
 
   }

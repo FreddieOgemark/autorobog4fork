@@ -152,6 +152,7 @@ class Navigation :
   double m_currentYaw;
   uint32_t m_currentPreview;
   uint8_t m_goToInterestPoint;
+  uint32_t m_speakerDuty;
 
 
 
