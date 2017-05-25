@@ -59,7 +59,7 @@ const double Navigation::GOAL_TOLERANCE = 2;
 const double Navigation::MIN_PREVIEW_LENGTH = 3;
 const double Navigation::MAX_PREVIEW_LENGTH = 10;
 
-const double Navigation::TURN_RATE = 0.5;
+const double Navigation::TURN_RATE = 1.0;
 
 const int32_t Navigation::E_FORWARD = 36000;
 const int32_t Navigation::E_REVERSE = -35000;
@@ -76,7 +76,7 @@ const int32_t Navigation::E_DYN_FOLLOW_SPEED =  8000; // max 10500
 
 const uint32_t Navigation::UPDATE_FREQ = 50;
 
-const uint8_t Navigation::WALL_MARGINS = 2;
+const double Navigation::WALL_MARGINS = 1.5;
 
 
 /*
@@ -113,7 +113,7 @@ Navigation::Navigation(const int &argc, char **argv)
     , m_currentPosition(-1000,-1000,0)
     , m_currentYaw(0)
     , m_currentPreview()
-    , m_goToInterestPoint(1)
+    , m_goToInterestPoint(2)
 {
   m_lastState =  navigationState::PLAN;
   m_currentState = navigationState::PLAN;
@@ -315,10 +315,12 @@ odcore::data::dmcp::ModuleExitCodeMessage::ModuleExitCode Navigation::body()
 void Navigation::decodeResolveSensors()
 {
   m_s_w_FrontRight = m_gpioReadings[49];
+  //m_s_w_FrontRight = double(m_analogReadings[1]) < 1.79;
   if (m_s_w_FrontRight) {
     m_s_w_FrontLeft_t = m_t_Current;
   }
   m_s_w_FrontLeft  = m_gpioReadings[48];
+  //m_s_w_FrontLeft  = double(m_analogReadings[0]) < 1.79;
   if (m_s_w_FrontLeft) {
     m_s_w_FrontLeft_t = m_t_Current;
   }
@@ -516,7 +518,11 @@ void Navigation::decodeResolveSensors()
       length = diff.length();
 
        if (m_path.back().getDistanceTo(m_currentPosition) < GOAL_TOLERANCE){
-          m_goToInterestPoint = rand() % 4;
+
+         if(m_goToInterestPoint == 2)
+            m_goToInterestPoint = 0;
+            else 
+            m_goToInterestPoint = 2;
           m_currentState = navigationState::PLAN;
           return out;
       }

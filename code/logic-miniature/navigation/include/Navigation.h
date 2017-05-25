@@ -98,7 +98,7 @@ class Navigation :
   static const uint32_t UPDATE_FREQ;
 
 
-  static const uint8_t WALL_MARGINS;
+  static const double WALL_MARGINS;
 
 
   void setUp();
